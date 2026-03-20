@@ -127,7 +127,7 @@ with col_kh2:
 
 st.markdown("🎨 **톤앤매너**")
 tone_options = ["친근하고 실용적인", "전문적이고 신뢰감 있는", "유머러스하고 가벼운", "진지하고 깊이 있는", "직접적이고 임팩트 있는"]
-tone = st.selectbox("", tone_options,
+tone = st.selectbox("톤앤매너 선택", tone_options,
     index=tone_options.index(st.session_state.tone) if st.session_state.tone in tone_options else 0,
     label_visibility="collapsed")
 st.session_state.tone = tone
@@ -149,7 +149,7 @@ else:
     st.caption("3권 시리즈 — 각 권을 순차적으로 집필합니다")
 
 st.markdown("📄 **목표 페이지 수**")
-page_count = st.slider("", min_value=80, max_value=250, value=st.session_state.page_count,
+page_count = st.slider("페이지 수 선택", min_value=80, max_value=250, value=st.session_state.page_count,
     step=10, label_visibility="collapsed",
     help="80~250장 선택 가능")
 st.session_state.page_count = page_count
