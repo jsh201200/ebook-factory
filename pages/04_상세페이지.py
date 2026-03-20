@@ -1,25 +1,21 @@
 import streamlit as st
-import sys, os
+import sys, os, re
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.storage import init_session, save_project
-from utils.styles import STYLE, render_nav, render_steps
 from utils.gemini import generate_text
 
 st.set_page_config(page_title="상세페이지 | 전자책 팩토리", page_icon="📘", layout="wide", initial_sidebar_state="collapsed")
 init_session()
-st.markdown(STYLE, unsafe_allow_html=True)
-render_nav(st.session_state.get("project_name", ""))
-render_steps(4)
 
-st.markdown('<div class="page-title">상세페이지 디자인</div>', unsafe_allow_html=True)
-st.markdown('<div class="page-subtitle">전자책 표지와 상세페이지를 완성하세요.</div>', unsafe_allow_html=True)
-st.markdown('<div class="main-wrap">', unsafe_allow_html=True)
+st.title("🎨 상세페이지 디자인")
+st.markdown("---")
 
 topic = st.session_state.get("topic", "")
 subtitle = st.session_state.get("subtitle", "")
-copy_sections = st.session_state.get("copy_sections", {})
 chapters = st.session_state.get("chapters", {})
+toc = st.session_state.get("toc", [])
+copy_sections = st.session_state.get("copy_sections", {})
 
 if not topic:
     st.warning("⚠️ 먼저 기획 정보를 입력해주세요!")
@@ -27,190 +23,186 @@ if not topic:
         st.switch_page("app.py")
     st.stop()
 
-# ── 탭 구성 ──
-tab1, tab2, tab3 = st.tabs(["📄 원고 PDF", "🖼️ 표지 & 목업", "🌐 상세페이지 HTML"])
+tab1, tab2, tab3 = st.tabs(["📄 원고 & 표지", "🖼️ 목업", "🌐 상세페이지 HTML"])
 
-# ── 탭 1: 원고 PDF ──
+# ── 탭1: 원고 & 표지 ──
 with tab1:
-    st.markdown("### 📄 원고 다운로드")
     if not chapters:
-        st.info("아직 작성된 챕터가 없어요. AI 집필 단계로 돌아가세요.")
+        st.info("아직 작성된 챕터가 없어요.")
         if st.button("← AI 집필로"):
             st.switch_page("pages/02_집필.py")
     else:
-        chapter_count = len(chapters)
         total_chars = sum(v.get("char_count", 0) for v in chapters.values())
+        est_pages = total_chars // 400
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("완성 챕터", len(chapters))
+        col2.metric("총 글자 수", f"{total_chars:,}")
+        col3.metric("예상 페이지", f"~{est_pages}p")
+
+        # 표지 디자인
+        st.subheader("🎨 표지 디자인")
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            cover_color = st.color_picker("배경색", value="#d63384", key="cover_color")
+        with col_c2:
+            text_color = st.color_picker("텍스트 색상", value="#ffffff", key="text_color")
+
+        short_title = topic[:25] if len(topic) > 25 else topic
+        short_sub = subtitle[:45] if subtitle and len(subtitle) > 45 else (subtitle or "")
+
+        # 표지 미리보기
         st.markdown(f"""
-        <div class="card">
-            <div style="display:flex;gap:24px">
-                <div><div style="font-size:24px;font-weight:700;color:#e05c2a">{chapter_count}</div><div style="font-size:12px;color:#888">챕터</div></div>
-                <div><div style="font-size:24px;font-weight:700;color:#e05c2a">{total_chars:,}</div><div style="font-size:12px;color:#888">총 글자 수</div></div>
-                <div><div style="font-size:24px;font-weight:700;color:#e05c2a">~{total_chars // 400}</div><div style="font-size:12px;color:#888">예상 페이지</div></div>
-            </div>
+        <div style="width:220px;height:310px;background:linear-gradient(135deg,{cover_color},{cover_color}cc);
+        border-radius:8px;display:flex;flex-direction:column;justify-content:center;align-items:center;
+        padding:20px;box-shadow:8px 8px 24px rgba(0,0,0,0.25);margin:16px auto;text-align:center;">
+            <div style="font-size:32px;margin-bottom:10px">📘</div>
+            <div style="color:{text_color};font-size:14px;font-weight:700;line-height:1.4;margin-bottom:10px">{short_title}</div>
+            <div style="width:30px;height:2px;background:{text_color};opacity:0.5;margin:6px 0"></div>
+            <div style="color:{text_color};font-size:10px;opacity:0.85;line-height:1.5">{short_sub}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        col_pdf1, col_pdf2 = st.columns(2)
+        # 원고 다운로드 3버튼
+        st.subheader("📥 원고 저장")
+        full_text = f"# {topic}\n"
+        if subtitle:
+            full_text += f"### {subtitle}\n\n"
+        full_text += "---\n\n"
+        if toc:
+            full_text += "## 목차\n\n"
+            for ch in toc:
+                full_text += f"{ch['num']}. {ch['title']}\n"
+            full_text += "\n---\n\n"
+        for key in sorted(chapters.keys(), key=lambda x: int(x)):
+            ch_data = chapters[key]
+            full_text += f"## Chapter {key}: {ch_data['title']}\n\n"
+            full_text += ch_data["content"] + "\n\n---\n\n"
 
-        with col_pdf1:
-            # 텍스트로 다운로드 (Markdown)
-            full_text = f"# {topic}\n"
-            if subtitle:
-                full_text += f"### {subtitle}\n\n"
-            full_text += "---\n\n"
-
-            toc = st.session_state.get("toc", [])
-            if toc:
-                full_text += "## 목차\n\n"
-                for ch in toc:
-                    full_text += f"{ch['num']}. {ch['title']}\n"
-                full_text += "\n---\n\n"
-
-            for i, (key, ch_data) in enumerate(sorted(chapters.items(), key=lambda x: int(x[0]))):
-                full_text += f"## Chapter {key}: {ch_data['title']}\n\n"
-                full_text += ch_data["content"] + "\n\n---\n\n"
-
+        col_d1, col_d2, col_d3 = st.columns(3)
+        with col_d1:
             st.download_button(
-                "📥 원고 저장 (Markdown)",
-                data=full_text.encode("utf-8"),
-                file_name=f"{topic[:20]}_원고.md",
-                mime="text/markdown",
-                use_container_width=True
-            )
-
-        with col_pdf2:
-            # 텍스트 파일
-            st.download_button(
-                "📥 원고 저장 (TXT)",
+                "📄 바로 PDF (TXT)",
                 data=full_text.encode("utf-8"),
                 file_name=f"{topic[:20]}_원고.txt",
                 mime="text/plain",
                 use_container_width=True
             )
+        with col_d2:
+            st.download_button(
+                "✏️ 편집 후 PDF (MD)",
+                data=full_text.encode("utf-8"),
+                file_name=f"{topic[:20]}_원고.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+        with col_d3:
+            if st.button("📣 상세페이지 디자인하기 →", use_container_width=True):
+                st.session_state["active_tab"] = 2
+                st.rerun()
 
-        st.info("💡 Markdown 파일은 Notion, Obsidian, Word에서 열 수 있어요. PDF 변환은 각 앱에서 가능합니다.")
+        st.info("💡 MD 파일은 Notion, Obsidian에서 열 수 있어요. 폰트/이미지 편집 후 PDF 변환 가능!")
 
-# ── 탭 2: 표지 & 목업 ──
+# ── 탭2: 목업 ──
 with tab2:
-    st.markdown("### 🖼️ 표지 디자인")
+    st.subheader("📱 목업 스타일 선택")
 
-    # 표지 컬러 선택
-    col_c1, col_c2 = st.columns(2)
-    with col_c1:
-        cover_color = st.color_picker("표지 배경색", value="#d63384")
-    with col_c2:
-        text_color = st.color_picker("텍스트 색상", value="#ffffff")
-
-    # 표지 미리보기 (HTML/CSS)
-    short_title = topic[:30] if len(topic) > 30 else topic
-    short_subtitle = subtitle[:50] if subtitle and len(subtitle) > 50 else (subtitle or "")
-
-    cover_html = f"""
-    <div style="
-        width: 260px;
-        height: 370px;
-        background: linear-gradient(135deg, {cover_color}, {cover_color}dd);
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 24px;
-        box-shadow: 8px 8px 24px rgba(0,0,0,0.2);
-        margin: 16px auto;
-        text-align: center;
-    ">
-        <div style="font-size:40px;margin-bottom:12px">📘</div>
-        <div style="color:{text_color};font-size:16px;font-weight:700;font-family:'Noto Serif KR',serif;line-height:1.4;margin-bottom:12px">{short_title}</div>
-        <div style="width:40px;height:2px;background:{text_color};opacity:0.5;margin:8px 0"></div>
-        <div style="color:{text_color};font-size:11px;opacity:0.85;line-height:1.5">{short_subtitle}</div>
-    </div>
-    """
-    st.markdown(cover_html, unsafe_allow_html=True)
-
-    # 목업 스타일 선택
-    st.markdown("**📱 목업 스타일 선택:**")
-    mockup_styles = [
+    MOCKUP_STYLES = [
         ("태블릿 3D", "아이패드에 표지가 표시된 3D 목업", "📱"),
         ("하드커버 책", "실물 하드커버 책 형태", "📗"),
         ("손에 든 책", "사람 손이 책을 잡고 있는 목업", "🤝"),
-        ("비스듬히 세운", "약간 기울어져 세워진 책 표현", "📐"),
-        ("플로팅", "공중에 떠 있는 느낌의 목업", "✨"),
-        ("밀친 책", "책이 펼쳐지는 느낌의 목업", "📖"),
-        ("프리미엄 다크", "어두운 배경에 고급스러운 표현", "🌑"),
+        ("비스듬히 세운", "약간 기울어져 세워진 표현", "📐"),
+        ("플로팅", "공중에 떠 있는 느낌", "✨"),
+        ("밀친 책", "책이 펼쳐지는 느낌", "📖"),
+        ("프리미엄 다크", "어두운 배경 고급스러운 표현", "🌑"),
     ]
 
     selected_mockup = st.session_state.get("selected_mockup", "태블릿 3D")
     cols = st.columns(4)
-    for i, (style, desc, icon) in enumerate(mockup_styles):
+    for i, (style, desc, icon) in enumerate(MOCKUP_STYLES):
         with cols[i % 4]:
             is_sel = selected_mockup == style
-            border = "2px solid #e05c2a" if is_sel else "1px solid #eee"
-            bg = "#fff0eb" if is_sel else "white"
-            if st.button(f"{icon} {style}", key=f"mockup_{i}", use_container_width=True,
-                        help=desc):
+            label = ("✅ " if is_sel else "") + f"{icon} {style}"
+            if st.button(label, key=f"mockup_{i}", use_container_width=True, help=desc):
                 st.session_state.selected_mockup = style
                 st.rerun()
 
-    if st.button("🎨 목업 생성하기", use_container_width=False):
-        st.info(f"'{selected_mockup}' 스타일로 생성! (실제 이미지 생성은 Canva/Midjourney 프롬프트를 참고하세요)")
-        with st.expander("🎨 Midjourney 프롬프트"):
-            prompt = f"ebook mockup, {selected_mockup.lower()} style, book cover with gradient background {cover_color}, title '{short_title}', professional product photo, white background, 4k"
-            st.code(prompt)
+    st.markdown(f"**선택됨: {selected_mockup}**")
 
-# ── 탭 3: 상세페이지 HTML ──
+    if st.button("🎨 목업 Midjourney 프롬프트 생성", use_container_width=False):
+        cover_color = st.session_state.get("cover_color", "#d63384")
+        short_title = topic[:20]
+        prompts = {
+            "태블릿 3D": f"iPad mockup 3D, ebook cover displayed on screen, gradient background {cover_color}, title '{short_title}', product photo, white background, 4k",
+            "하드커버 책": f"hardcover book mockup, ebook cover '{short_title}', gradient {cover_color}, professional product shot, white background, 4k",
+            "손에 든 책": f"hand holding book mockup, ebook '{short_title}', gradient cover {cover_color}, lifestyle photo, clean background, 4k",
+            "비스듬히 세운": f"book standing at angle mockup, ebook cover '{short_title}', gradient {cover_color}, minimal product photo, 4k",
+            "플로팅": f"floating book mockup, ebook '{short_title}', gradient {cover_color}, levitating, dramatic shadows, 4k",
+            "밀친 책": f"book open spread mockup, ebook '{short_title}', gradient cover {cover_color}, flat lay, 4k",
+            "프리미엄 다크": f"premium dark background book mockup, ebook '{short_title}', gradient {cover_color}, luxury product photo, dark studio, 4k",
+        }
+        st.code(prompts.get(selected_mockup, ""))
+
+    # 추가 이미지 업로드
+    st.markdown("---")
+    st.subheader("🖼️ 추가 이미지 갤러리")
+    st.caption("상세페이지에 배치할 이미지를 업로드하세요. (제품 사진, 목업 등)")
+    uploaded_files = st.file_uploader(
+        "이미지 업로드",
+        accept_multiple_files=True,
+        type=["png", "jpg", "jpeg"],
+        label_visibility="collapsed"
+    )
+    if uploaded_files:
+        cols = st.columns(3)
+        for i, f in enumerate(uploaded_files):
+            with cols[i % 3]:
+                st.image(f, use_container_width=True)
+
+# ── 탭3: 상세페이지 HTML ──
 with tab3:
-    st.markdown("### 🌐 상세페이지 HTML 생성")
-
+    st.subheader("🌐 상세페이지 HTML 생성")
     if not copy_sections:
         st.info("카피라이팅 단계를 먼저 완성해주세요.")
         if st.button("← 카피라이팅으로"):
             st.switch_page("pages/03_카피라이팅.py")
     else:
         if st.button("🚀 상세페이지 HTML 생성", use_container_width=False):
-            with st.spinner("HTML 상세페이지 생성 중..."):
-                sections_text = "\n\n".join([f"[{k}]\n{v}" for k, v in copy_sections.items()])
-                prompt = f"""
-다음 카피를 사용해서 전자책 판매 상세페이지 HTML을 만들어주세요.
+            with st.spinner("HTML 생성 중..."):
+                sections_text = "\n\n".join([f"[{k}]\n{v}" for k, v in list(copy_sections.items())[:6]])
+                cover_color = st.session_state.get("cover_color", "#d63384")
+                prompt = f"""전자책 판매 상세페이지 HTML을 만들어주세요.
 
 전자책: {topic}
-표지 색상: {st.session_state.get('cover_color', '#d63384') if 'cover_color' in st.session_state else '#d63384'}
+주색상: {cover_color}
 
-카피 내용:
-{sections_text[:3000]}
+카피:
+{sections_text}
 
 요구사항:
-- 완전한 HTML 파일 (<!DOCTYPE html> 포함)
+- 완전한 HTML (DOCTYPE 포함)
 - 모바일 반응형
-- 전문적인 디자인 (CSS 인라인 또는 <style> 태그)
-- 섹션별로 잘 구분
-- 구매 버튼 포함 (링크는 #으로)
-- 한국어
-"""
-                html_result = generate_text(prompt, max_tokens=6000)
-
-                # HTML 정제
-                import re
-                clean_html = re.sub(r'```html|```', '', html_result).strip()
+- 전문적 디자인
+- 구매 버튼 포함 (#링크)
+- 한국어"""
+                result = generate_text(prompt, max_tokens=6000)
+                clean_html = re.sub(r'```html|```', '', result).strip()
 
                 st.download_button(
-                    "📥 상세페이지 HTML 다운로드",
+                    "📥 HTML 다운로드",
                     data=clean_html.encode("utf-8"),
                     file_name=f"{topic[:20]}_상세페이지.html",
                     mime="text/html",
-                    use_container_width=True
+                    use_container_width=False
                 )
-
                 with st.expander("👀 미리보기"):
                     st.components.v1.html(clean_html, height=600, scrolling=True)
 
-# ── 배포 가이드 링크 ──
+# 배포 가이드
 st.markdown("---")
-col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
-with col_nav2:
+col_n1, col_n2, col_n3 = st.columns([1, 2, 1])
+with col_n2:
     if st.button("🚀 배포 가이드 →", use_container_width=True):
         if st.session_state.project_name:
             save_project(st.session_state.project_name, dict(st.session_state))
         st.switch_page("pages/05_배포가이드.py")
-
-st.markdown('</div>', unsafe_allow_html=True)
