@@ -56,8 +56,25 @@ with col2:
         if kw:
             with st.spinner("AI가 추천하는 중..."):
                 prompt = f"""키워드: {kw}
-판매 가능한 전자책 아이디어 5개를 추천해주세요.
-각각 아래 형식으로만 응답 (다른 텍스트 없이):
+
+실제로 잘 팔리는 전자책 아이디어 5개를 추천해주세요.
+
+주제 제목 규칙:
+- 반드시 숫자 포함 (월 100만원, 78가지, 3개월, 12단계 등)
+- 구체적인 결과/방법이 보여야 함
+- 독자가 제목만 봐도 "이거 나 얘기다!" 싶어야 함
+- 예시 수준: "월 100만원 부업을 위한 타로 실전 상담 매뉴얼: 질문 설계부터 클로징까지 팩트폭격 화법"
+
+부제 규칙:
+- 핵심 노하우 2~3가지를 압축해서 한 줄로
+- 독자가 얻을 구체적 스킬/결과 명시
+- 예시: "타로 부업을 희망하는 예비 상담사, 수익이 정체된 초보 상담사가 공개하는 내담자의 마음을 열고 재방문을 부르는 상담 연출법과 상담 화법 템플릿"
+
+타겟독자 규칙:
+- 핀셋 타겟 (나이대+상황+구체적 고민까지)
+- 예시: "수익이 정체된 초보 타로 상담사", "퇴사를 앞둔 3~5년차 직장인", "자기계발에 관심 있는 2030 여성"
+
+반드시 아래 형식으로만 5줄, 다른 텍스트 절대 금지:
 1|주제|부제|타겟독자
 2|주제|부제|타겟독자
 3|주제|부제|타겟독자
@@ -129,7 +146,26 @@ with col_kh2:
     if st.button("노하우 추천 ✨", key="btn_knowhow"):
         if st.session_state.topic:
             with st.spinner("추천 중..."):
-                prompt = f"전자책 주제: {st.session_state.topic}\n타겟: {st.session_state.target or '일반 독자'}\n핵심 노하우 5~7가지를 줄바꿈으로 구분해서 추천해주세요. 번호 없이."
+                prompt = f"""전자책 주제: {st.session_state.topic}
+타겟 독자: {st.session_state.target or '일반 독자'}
+
+이 전자책에 담을 핵심 노하우를 7~10개 추천해주세요.
+
+조건:
+- 각 항목은 줄바꿈으로 구분
+- 번호, 기호, 마크다운 없이 순수 텍스트만
+- 추상적인 말 금지 (예: "마인드셋을 바꿔라" X)
+- 반드시 구체적이고 실용적으로 (예: "첫 고객 확보를 위한 오픈채팅방 3단계 전략" O)
+- 독자가 "오, 이거 진짜 유용하다!" 싶은 것들만
+- 실제 현장에서 바로 쓸 수 있는 팁 위주
+- 각 항목은 10~30자 사내로 명확하게
+
+예시 수준:
+클라이언트 확보하는 3가지 채널과 채널별 접근법
+단가 협상에서 절대 양보하면 안 되는 3가지 이유
+프리랜서 종합소득세 절세를 위한 경비 처리 꿀팁
+첫 상담에서 계약까지 이어지는 질문 설계법
+재방문율을 높이는 사후 관리 루틴"""
                 result = generate_text(prompt, max_tokens=400)
                 if result:
                     st.session_state.knowhow = result
@@ -138,11 +174,56 @@ with col_kh2:
             st.warning("주제를 먼저 입력해주세요!")
 
 # 톤앤매너
-tone_options = ["친근하고 실용적인", "전문적이고 신뢰감 있는", "유머러스하고 가벼운", "진지하고 깊이 있는", "직접적이고 임팩트 있는"]
-st.session_state.tone = st.selectbox(
-    "🎨 톤앤매너",
-    tone_options,
-    index=tone_options.index(st.session_state.tone) if st.session_state.tone in tone_options else 0
+st.subheader("🎨 톤앤매너")
+
+TONE_PRESETS = {
+    "친한 언니/오빠 스타일": "친한 언니나 오빠가 카페에서 알려주는 느낌. 편하고 솔직한 문체, 사례 중심, 중간중간 '솔직히 말하면~', '이거 진짜 중요해요' 같은 표현 사용. 독자가 혼자 읽어도 옆에서 누가 설명해주는 느낌.",
+    "전문가 멘토 스타일": "현장 경험이 풍부한 전문가가 후배에게 전수하는 느낌. 신뢰감 있고 근거 중심. 데이터와 수치로 증명. '제 경험상~', '실제로 해보면~' 같은 표현으로 권위 있게.",
+    "직설적 코치 스타일": "돌려 말하지 않고 핵심만 팍팍. '이렇게 해라', '이건 하지 마라' 명확하게. 독자가 바로 행동하게 만드는 임팩트 있는 문체. 짧고 강한 문장 위주.",
+    "공감형 스토리텔러": "독자의 고민에 깊이 공감하며 시작. 저자 본인의 실패와 성공 스토리를 녹여서 감성적으로. '저도 처음엔~', '그때 정말 막막했어요' 같은 공감 표현으로 독자와 연결.",
+    "유머러스한 친구 스타일": "가볍고 재미있게. 중간중간 유머와 비유로 어려운 내용도 쉽게. 독자가 웃으면서 읽다 보면 어느새 내용이 머릿속에 쏙 들어오는 스타일.",
+}
+
+# 프리셋 버튼
+cols = st.columns(3)
+for i, (preset_name, _) in enumerate(TONE_PRESETS.items()):
+    with cols[i % 3]:
+        is_selected = st.session_state.get("tone_preset") == preset_name
+        if st.button(
+            ("✅ " if is_selected else "") + preset_name,
+            key=f"tone_{i}",
+            use_container_width=True
+        ):
+            st.session_state["tone_preset"] = preset_name
+            # AI로 세부 설정 자동 생성
+            with st.spinner("AI가 세부 톤 설정 중..."):
+                from utils.gemini import generate_text as _gen
+                auto_prompt = f"""전자책 톤앤매너 스타일: {preset_name}
+전자책 주제: {st.session_state.get("topic", "미정")}
+
+이 스타일로 전자책을 쓸 때의 세부 가이드를 3~5줄로 작성해주세요.
+- 문체 특징
+- 자주 쓸 표현/어투
+- 피해야 할 것
+- 독자와의 거리감
+마크다운 없이 줄바꿈으로 구분."""
+                result = _gen(auto_prompt, max_tokens=300)
+                if result:
+                    st.session_state.tone = preset_name + "\n\n[세부 설정]\n" + result
+                else:
+                    st.session_state.tone = TONE_PRESETS[preset_name]
+            st.rerun()
+
+# 세부 설정 편집창 (자동생성 후 수정 가능)
+if st.session_state.get("tone_preset"):
+    st.caption(f"선택됨: **{st.session_state.tone_preset}** — 아래에서 자유롭게 수정하세요!")
+
+st.session_state.tone = st.text_area(
+    "톤앤매너 세부 설정 (자동생성 후 직접 수정 가능)",
+    value=st.session_state.tone,
+    height=120,
+    placeholder="프리셋을 선택하면 AI가 자동으로 채워드려요. 직접 입력도 가능해요.",
+    label_visibility="collapsed"
 )
 
 # 시리즈
