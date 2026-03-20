@@ -75,11 +75,13 @@ with col2:
                     ideas = []
                     try:
                         import re as _re
-                        clean = _re.sub(r'```json|```', '', result).strip()
-                        # JSON 배열 추출
-                        match = _re.search(r'\[.*\]', clean, _re.DOTALL)
+                        clean = result.strip()
+                        clean = _re.sub(r'```json|```', '', clean).strip()
+                        match = _re.search(r'\[.*?\]', clean, _re.DOTALL)
                         if match:
                             ideas = _json.loads(match.group())
+                        else:
+                            ideas = _json.loads(clean)
                     except Exception:
                         pass
                     # 파이프 구분자 fallback
