@@ -1,6 +1,8 @@
 import streamlit as st
 import sys
 import os
+import json
+import re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from utils.storage import init_session, save_project, load_project, list_projects
@@ -55,7 +57,6 @@ with col2:
         kw = st.session_state.get("keyword_input", "")
         if kw:
             with st.spinner("AI가 추천하는 중..."):
-                import json as _json
                 prompt = f"""키워드: {kw}
 
 실제로 잘 팔리는 전자책 아이디어 10개 추천.
@@ -65,61 +66,55 @@ with col2:
 - 부제: 핵심 노하우 2~3가지 압축, 한 줄
 - 타겟: 핀셋 (나이대+상황+고민, 예: "수익 정체된 초보 타로 상담사")
 
-반드시 JSON 배열로만 응답. 다른 텍스트 없이:
+반드시 아래 JSON 형식으로만 응답. 코드블록 없이 순수 JSON만:
 [
   {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
-  ...10개...
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}}
 ]"""
                 result = generate_text(prompt, max_tokens=2000)
                 if result:
                     ideas = []
-                    try:
-                        import re as _re
-                        clean = result.strip()
-                        # 코드블록 제거
-                        clean = clean.replace('```json', '').replace('```', '').strip()
-                        # [ ] 사이 JSON 추출
-                        start = clean.find('[')
-                        end = clean.rfind(']') + 1
-                        if start != -1 and end > start:
-                            ideas = _json.loads(clean[start:end])
-                    except Exception as je:
-                        st.error(f"파싱 오류: {je}")
-                    # 파이프 구분자 fallback
-                    if not ideas:
-                        for line in result.strip().split("\n"):
-                            line = line.strip()
-                            if not line:
-                                continue
-                            parts = line.split("|")
-                            if len(parts) >= 4:
-                                ideas.append({"topic": parts[1].strip(), "subtitle": parts[2].strip(), "target": parts[3].strip()})
-                            elif len(parts) == 3:
-                                ideas.append({"topic": parts[0].strip().lstrip("0123456789. "), "subtitle": parts[1].strip(), "target": parts[2].strip()})
+                    # 코드블록 제거 후 JSON 파싱
+                    clean = result.strip()
+                    for marker in ["```json", "```"]:
+                        clean = clean.replace(marker, "")
+                    clean = clean.strip()
+                    start = clean.find("[")
+                    end = clean.rfind("]") + 1
+                    if start != -1 and end > start:
+                        try:
+                            ideas = json.loads(clean[start:end])
+                        except Exception:
+                            ideas = []
                     if ideas:
                         st.session_state["recommend_ideas"] = ideas
-                        st.session_state["recommend_raw"] = None
                         st.rerun()
-                  else:
+                    else:
                         st.session_state["recommend_raw"] = result
                         st.rerun()
-
         else:
             st.warning("키워드를 입력해주세요!")
 
 # 파싱 실패시 원본 표시
 if st.session_state.get("recommend_raw"):
-    st.warning("AI 응답을 파싱하지 못했어요. 직접 확인하고 복사해서 입력해주세요!")
+    st.warning("파싱 실패! AI 원본 응답:")
     st.text(st.session_state["recommend_raw"])
     if st.button("닫기", key="close_raw"):
         st.session_state["recommend_raw"] = None
         st.rerun()
 
-# 추천 결과 표시
+# 추천 결과 카드 표시
 if st.session_state.get("recommend_ideas"):
     st.markdown("**👇 클릭하면 자동으로 채워져요!**")
     ideas = st.session_state["recommend_ideas"]
-    # 2열 카드 형태
     for i in range(0, len(ideas), 2):
         col1, col2 = st.columns(2)
         for j, col in enumerate([col1, col2]):
@@ -141,7 +136,6 @@ if st.session_state.get("recommend_ideas"):
 st.markdown("---")
 st.subheader("📚 기본 정보")
 
-# 입력 후 수정 가능
 st.session_state.topic = st.text_input(
     "전자책 주제 *",
     value=st.session_state.topic,
@@ -160,7 +154,6 @@ st.session_state.target = st.text_input(
     placeholder="예: 타로 부업을 희망하는 예비 상담사"
 )
 
-# 핵심 노하우
 col_kh1, col_kh2 = st.columns([4, 1])
 with col_kh1:
     st.session_state.knowhow = st.text_area(
@@ -179,23 +172,13 @@ with col_kh2:
                 prompt = f"""전자책 주제: {st.session_state.topic}
 타겟 독자: {st.session_state.target or '일반 독자'}
 
-이 전자책에 담을 핵심 노하우를 7~10개 추천해주세요.
-
+핵심 노하우 7~10개 추천.
 조건:
-- 각 항목은 줄바꿈으로 구분
-- 번호, 기호, 마크다운 없이 순수 텍스트만
-- 추상적인 말 금지 (예: "마인드셋을 바꿔라" X)
-- 반드시 구체적이고 실용적으로 (예: "첫 고객 확보를 위한 오픈채팅방 3단계 전략" O)
-- 독자가 "오, 이거 진짜 유용하다!" 싶은 것들만
-- 실제 현장에서 바로 쓸 수 있는 팁 위주
-- 각 항목은 10~30자 사내로 명확하게
-
-예시 수준:
-클라이언트 확보하는 3가지 채널과 채널별 접근법
-단가 협상에서 절대 양보하면 안 되는 3가지 이유
-프리랜서 종합소득세 절세를 위한 경비 처리 꿀팁
-첫 상담에서 계약까지 이어지는 질문 설계법
-재방문율을 높이는 사후 관리 루틴"""
+- 줄바꿈으로 구분, 번호/기호/마크다운 없이
+- 추상적 금지 ("마인드셋을 바꿔라" X)
+- 구체적이고 실용적으로 ("첫 고객 확보를 위한 오픈채팅방 3단계 전략" O)
+- 현장에서 바로 쓸 수 있는 팁
+- 각 항목 10~30자로 명확하게"""
                 result = generate_text(prompt, max_tokens=400)
                 if result:
                     st.session_state.knowhow = result
@@ -207,16 +190,15 @@ with col_kh2:
 st.subheader("🎨 톤앤매너")
 
 TONE_PRESETS = {
-    "친한 언니/오빠 스타일": "친한 언니나 오빠가 카페에서 알려주는 느낌. 편하고 솔직한 문체, 사례 중심, 중간중간 '솔직히 말하면~', '이거 진짜 중요해요' 같은 표현 사용. 독자가 혼자 읽어도 옆에서 누가 설명해주는 느낌.",
-    "전문가 멘토 스타일": "현장 경험이 풍부한 전문가가 후배에게 전수하는 느낌. 신뢰감 있고 근거 중심. 데이터와 수치로 증명. '제 경험상~', '실제로 해보면~' 같은 표현으로 권위 있게.",
-    "직설적 코치 스타일": "돌려 말하지 않고 핵심만 팍팍. '이렇게 해라', '이건 하지 마라' 명확하게. 독자가 바로 행동하게 만드는 임팩트 있는 문체. 짧고 강한 문장 위주.",
-    "공감형 스토리텔러": "독자의 고민에 깊이 공감하며 시작. 저자 본인의 실패와 성공 스토리를 녹여서 감성적으로. '저도 처음엔~', '그때 정말 막막했어요' 같은 공감 표현으로 독자와 연결.",
-    "유머러스한 친구 스타일": "가볍고 재미있게. 중간중간 유머와 비유로 어려운 내용도 쉽게. 독자가 웃으면서 읽다 보면 어느새 내용이 머릿속에 쏙 들어오는 스타일.",
+    "친한 언니/오빠 스타일": "친한 언니나 오빠가 카페에서 알려주는 느낌. 편하고 솔직한 문체, 사례 중심.",
+    "전문가 멘토 스타일": "현장 경험이 풍부한 전문가가 후배에게 전수하는 느낌. 신뢰감 있고 근거 중심.",
+    "직설적 코치 스타일": "돌려 말하지 않고 핵심만 팍팍. 독자가 바로 행동하게 만드는 임팩트 있는 문체.",
+    "공감형 스토리텔러": "독자의 고민에 깊이 공감하며 시작. 저자 본인의 실패와 성공 스토리를 녹여서 감성적으로.",
+    "유머러스한 친구 스타일": "가볍고 재미있게. 유머와 비유로 어려운 내용도 쉽게.",
 }
 
-# 프리셋 버튼
 cols = st.columns(3)
-for i, (preset_name, _) in enumerate(TONE_PRESETS.items()):
+for i, (preset_name, preset_desc) in enumerate(TONE_PRESETS.items()):
     with cols[i % 3]:
         is_selected = st.session_state.get("tone_preset") == preset_name
         if st.button(
@@ -225,34 +207,27 @@ for i, (preset_name, _) in enumerate(TONE_PRESETS.items()):
             use_container_width=True
         ):
             st.session_state["tone_preset"] = preset_name
-            # AI로 세부 설정 자동 생성
             with st.spinner("AI가 세부 톤 설정 중..."):
-                from utils.gemini import generate_text as _gen
-                auto_prompt = f"""전자책 톤앤매너 스타일: {preset_name}
+                auto_prompt = f"""전자책 톤앤매너: {preset_name}
 전자책 주제: {st.session_state.get("topic", "미정")}
 
-이 스타일로 전자책을 쓸 때의 세부 가이드를 3~5줄로 작성해주세요.
+이 스타일로 쓸 때의 세부 가이드 3~5줄:
 - 문체 특징
 - 자주 쓸 표현/어투
 - 피해야 할 것
-- 독자와의 거리감
-마크다운 없이 줄바꿈으로 구분."""
-                result = _gen(auto_prompt, max_tokens=300)
-                if result:
-                    st.session_state.tone = preset_name + "\n\n[세부 설정]\n" + result
-                else:
-                    st.session_state.tone = TONE_PRESETS[preset_name]
+마크다운 없이 줄바꿈으로."""
+                result = generate_text(auto_prompt, max_tokens=300)
+                st.session_state.tone = preset_name + "\n\n[세부 설정]\n" + (result or preset_desc)
             st.rerun()
 
-# 세부 설정 편집창 (자동생성 후 수정 가능)
 if st.session_state.get("tone_preset"):
-    st.caption(f"선택됨: **{st.session_state.tone_preset}** — 아래에서 자유롭게 수정하세요!")
+    st.caption(f"선택됨: **{st.session_state.tone_preset}** — 아래에서 수정 가능해요!")
 
 st.session_state.tone = st.text_area(
-    "톤앤매너 세부 설정 (자동생성 후 직접 수정 가능)",
+    "톤앤매너",
     value=st.session_state.tone,
     height=120,
-    placeholder="프리셋을 선택하면 AI가 자동으로 채워드려요. 직접 입력도 가능해요.",
+    placeholder="프리셋 선택하면 AI가 자동으로 채워드려요. 직접 입력도 가능해요.",
     label_visibility="collapsed"
 )
 
