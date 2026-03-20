@@ -161,7 +161,7 @@ else:
         if section_name in copy_sections:
             with st.expander(section_name, expanded=False):
                 content = copy_sections[section_name]
-                edited = st.text_area("", value=content, height=200, key=f"copy_{section_name}", label_visibility="collapsed")
+                edited = st.text_area("입력", value=content, height=200, key=f"copy_{section_name}", label_visibility="collapsed")
                 col_s1, col_s2, col_s3 = st.columns(3)
                 with col_s1:
                     if st.button("💾 저장", key=f"save_{section_name}"):
