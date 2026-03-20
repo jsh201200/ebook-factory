@@ -79,7 +79,7 @@ with col2:
   {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
   {{"topic": "주제", "subtitle": "부제", "target": "타겟"}}
 ]"""
-                result = generate_text(prompt, max_tokens=2000)
+                result = generate_text(prompt, max_tokens=4000)
                 if result:
                     ideas = []
                     # 코드블록 제거 후 JSON 파싱
