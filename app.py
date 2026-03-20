@@ -66,7 +66,7 @@ st.markdown("💡 **어떤 주제로 쓸지 모르겠다면?**")
 st.markdown("<small style='color:#888'>관심 키워드만 입력하면 AI가 구체적인 전자책 주제를 추천해드려요.</small>", unsafe_allow_html=True)
 col_kw1, col_kw2 = st.columns([4, 1])
 with col_kw1:
-    keyword_input = st.text_input("", placeholder="예: 타로, 부업, 다이어트, 주식...", label_visibility="collapsed")
+    keyword_input = st.text_input("키워드 입력", placeholder="예: 타로, 부업, 다이어트, 주식...", label_visibility="collapsed")
 with col_kw2:
     if st.button("추천받기 ✨", use_container_width=True):
         if keyword_input:
@@ -86,19 +86,19 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
 st.markdown("📚 **전자책 주제**")
-topic = st.text_input("", value=st.session_state.topic,
+topic = st.text_input("전자책 주제", value=st.session_state.topic,
     placeholder="예: 퇴사 후 프리랜서로 월 500만원 버는 법",
     label_visibility="collapsed", key="topic_input")
 st.session_state.topic = topic
 
 st.markdown("✏️ **부제 (선택)**")
-subtitle = st.text_input("", value=st.session_state.subtitle,
+subtitle = st.text_input("부제", value=st.session_state.subtitle,
     placeholder="예: 카드 의미 나열 대신 상황을 꿰뚫는 메타포 화법과 재방문을 부르는 질문 설계의 기술",
     label_visibility="collapsed", key="subtitle_input")
 st.session_state.subtitle = subtitle
 
 st.markdown("🎯 **타겟 독자**")
-target = st.text_input("", value=st.session_state.target,
+target = st.text_input("타겟 독자", value=st.session_state.target,
     placeholder="예: 타로 부업을 희망하는 예비 상담사, 수익이 정체된 초보 상담사",
     label_visibility="collapsed", key="target_input")
 st.session_state.target = target
@@ -106,7 +106,7 @@ st.session_state.target = target
 st.markdown("💡 **핵심 노하우** (줄바꿈으로 구분, 최소 3개)")
 col_kh1, col_kh2 = st.columns([4, 1])
 with col_kh1:
-    knowhow = st.text_area("", value=st.session_state.knowhow,
+    knowhow = st.text_area("핵심 노하우", value=st.session_state.knowhow,
         placeholder="클라이언트 확보하는 3가지 채널\n단가 협상에서 절대 양보하면 안 되는 것\n프리랜서 세금 처리 꿀팁",
         label_visibility="collapsed", height=120, key="knowhow_input")
     st.session_state.knowhow = knowhow
