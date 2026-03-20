@@ -76,13 +76,14 @@ with col2:
                     try:
                         import re as _re
                         clean = result.strip()
-                        clean = _re.sub(r'```json|```', '', clean).strip()
-                        match = _re.search(r'\[.*?\]', clean, _re.DOTALL)
-                        if match:
-                            ideas = _json.loads(match.group())
-                        else:
-                            ideas = _json.loads(clean)
-                    except Exception:
+                        # 코드블록 제거
+                        clean = clean.replace('```json', '').replace('```', '').strip()
+                        # [ ] 사이 JSON 추출
+                        start = clean.find('[')
+                        end = clean.rfind(']') + 1
+                        if start != -1 and end > start:
+                            ideas = _json.loads(clean[start:end])
+                    except Exception as je:
                         pass
                     # 파이프 구분자 fallback
                     if not ideas:
