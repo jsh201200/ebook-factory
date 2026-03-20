@@ -25,7 +25,10 @@ def generate_text(prompt: str, max_tokens: int = 8192) -> str:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt,
-            config=types.GenerateContentConfig(max_output_tokens=max_tokens)
+            config=types.GenerateContentConfig(
+                max_output_tokens=16000,
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
+            )
         )
         return response.text
     except Exception as e:
