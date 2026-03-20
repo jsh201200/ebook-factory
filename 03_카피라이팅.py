@@ -1,6 +1,6 @@
 import streamlit as st
 import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.storage import init_session, save_project
 from utils.styles import STYLE, render_nav, render_steps
