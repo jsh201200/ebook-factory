@@ -3,7 +3,16 @@ import streamlit as st
 import os
 
 def get_gemini_client():
-    api_key = st.session_state.get("gemini_api_key") or os.getenv("GEMINI_API_KEY", "")
+    # Streamlit Secrets → 환경변수 → 세션 순서로 키 찾기
+    api_key = ""
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+    if not api_key:
+        api_key = os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        api_key = st.session_state.get("gemini_api_key", "")
     if not api_key:
         return None
     genai.configure(api_key=api_key)
