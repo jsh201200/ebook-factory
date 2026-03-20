@@ -219,7 +219,8 @@ for i, (preset_name, preset_desc) in enumerate(TONE_PRESETS.items()):
 - 문체 특징
 - 자주 쓸 표현/어투
 - 피해야 할 것
-마크다운 없이 줄바꿈으로."""
+마크다운 없이 줄바꿈으로.
+"네", "알겠습니다" 같은 AI 응답 멘트 없이 바로 내용 시작."""
                 result = generate_text(auto_prompt, max_tokens=300)
                 st.session_state.tone = preset_name + "\n\n[세부 설정]\n" + (result or preset_desc)
             st.rerun()
