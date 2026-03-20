@@ -57,7 +57,7 @@ with col2:
             with st.spinner("AI가 추천하는 중..."):
                 prompt = f"""키워드: {kw}
 
-실제로 잘 팔리는 전자책 아이디어 5개를 추천해주세요.
+실제로 잘 팔리는 전자책 아이디어 10개를 추천해주세요.
 
 주제 제목 규칙:
 - 반드시 숫자 포함 (월 100만원, 78가지, 3개월, 12단계 등)
@@ -74,16 +74,24 @@ with col2:
 - 핀셋 타겟 (나이대+상황+구체적 고민까지)
 - 예시: "수익이 정체된 초보 타로 상담사", "퇴사를 앞둔 3~5년차 직장인", "자기계발에 관심 있는 2030 여성"
 
-반드시 아래 형식으로만 5줄, 다른 텍스트 절대 금지:
+반드시 아래 형식으로만 10줄, 다른 텍스트 절대 금지:
 1|주제|부제|타겟독자
 2|주제|부제|타겟독자
 3|주제|부제|타겟독자
 4|주제|부제|타겟독자
-5|주제|부제|타겟독자"""
+5|주제|부제|타겟독자
+6|주제|부제|타겟독자
+7|주제|부제|타겟독자
+8|주제|부제|타겟독자
+9|주제|부제|타겟독자
+10|주제|부제|타겟독자"""
                 result = generate_text(prompt, max_tokens=800)
                 if result:
                     ideas = []
                     for line in result.strip().split("\n"):
+                        line = line.strip()
+                        if not line:
+                            continue
                         parts = line.split("|")
                         if len(parts) >= 4:
                             ideas.append({
@@ -91,22 +99,53 @@ with col2:
                                 "subtitle": parts[2].strip(),
                                 "target": parts[3].strip()
                             })
+                        elif len(parts) == 3:
+                            ideas.append({
+                                "topic": parts[0].strip().lstrip("12345. "),
+                                "subtitle": parts[1].strip(),
+                                "target": parts[2].strip()
+                            })
                     if ideas:
                         st.session_state["recommend_ideas"] = ideas
                         st.rerun()
+                    elif result:
+                        # 파싱 실패시 원본 그대로 보여주기
+                        st.session_state["recommend_raw"] = result
+                        st.rerun()
+
         else:
             st.warning("키워드를 입력해주세요!")
 
+# 파싱 실패시 원본 표시
+if st.session_state.get("recommend_raw"):
+    st.warning("AI 응답을 파싱하지 못했어요. 직접 확인하고 복사해서 입력해주세요!")
+    st.text(st.session_state["recommend_raw"])
+    if st.button("닫기", key="close_raw"):
+        st.session_state["recommend_raw"] = None
+        st.rerun()
+
 # 추천 결과 표시
 if st.session_state.get("recommend_ideas"):
-    st.info("👇 클릭하면 주제/부제/타겟이 자동으로 채워져요! (직접 수정도 가능해요)")
-    for i, idea in enumerate(st.session_state["recommend_ideas"]):
-        if st.button(f"📌 {idea['topic']}", key=f"idea_{i}"):
-            st.session_state.topic = idea["topic"]
-            st.session_state.subtitle = idea["subtitle"]
-            st.session_state.target = idea["target"]
-            st.session_state["recommend_ideas"] = []
-            st.rerun()
+    st.markdown("**👇 클릭하면 자동으로 채워져요!**")
+    ideas = st.session_state["recommend_ideas"]
+    # 2열 카드 형태
+    for i in range(0, len(ideas), 2):
+        col1, col2 = st.columns(2)
+        for j, col in enumerate([col1, col2]):
+            idx = i + j
+            if idx < len(ideas):
+                idea = ideas[idx]
+                with col:
+                    with st.container(border=True):
+                        st.markdown(f"**{idea['topic']}**")
+                        st.caption(idea['subtitle'])
+                        st.caption(f"🎯 {idea['target']}")
+                        if st.button("이걸로 선택 →", key=f"idea_{idx}", use_container_width=True):
+                            st.session_state.topic = idea["topic"]
+                            st.session_state.subtitle = idea["subtitle"]
+                            st.session_state.target = idea["target"]
+                            st.session_state["recommend_ideas"] = []
+                            st.rerun()
 
 st.markdown("---")
 st.subheader("📚 기본 정보")
