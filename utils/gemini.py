@@ -23,7 +23,7 @@ def generate_text(prompt: str, max_tokens: int = 8192) -> str:
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-2.5-flash-preview-04-17",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(max_output_tokens=max_tokens)
         )
@@ -40,7 +40,7 @@ def stream_text(prompt: str):
     try:
         client = genai.Client(api_key=api_key)
         for chunk in client.models.generate_content_stream(
-            model="gemini-2.5-flash-preview-04-17",
+            model="gemini-2.5-flash",
             contents=prompt
         ):
             if chunk.text:
