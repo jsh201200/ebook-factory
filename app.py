@@ -55,60 +55,52 @@ with col2:
         kw = st.session_state.get("keyword_input", "")
         if kw:
             with st.spinner("AI가 추천하는 중..."):
+                import json as _json
                 prompt = f"""키워드: {kw}
 
-실제로 잘 팔리는 전자책 아이디어 10개를 추천해주세요.
+실제로 잘 팔리는 전자책 아이디어 10개 추천.
 
-주제 제목 규칙:
-- 반드시 숫자 포함 (월 100만원, 78가지, 3개월, 12단계 등)
-- 구체적인 결과/방법이 보여야 함
-- 독자가 제목만 봐도 "이거 나 얘기다!" 싶어야 함
-- 예시 수준: "월 100만원 부업을 위한 타로 실전 상담 매뉴얼: 질문 설계부터 클로징까지 팩트폭격 화법"
+규칙:
+- 주제: 숫자 포함, 구체적 결과/방법 명시, "이거 나 얘기다!" 싶게
+- 부제: 핵심 노하우 2~3가지 압축, 한 줄
+- 타겟: 핀셋 (나이대+상황+고민, 예: "수익 정체된 초보 타로 상담사")
 
-부제 규칙:
-- 핵심 노하우 2~3가지를 압축해서 한 줄로
-- 독자가 얻을 구체적 스킬/결과 명시
-- 예시: "타로 부업을 희망하는 예비 상담사, 수익이 정체된 초보 상담사가 공개하는 내담자의 마음을 열고 재방문을 부르는 상담 연출법과 상담 화법 템플릿"
-
-타겟독자 규칙:
-- 핀셋 타겟 (나이대+상황+구체적 고민까지)
-- 예시: "수익이 정체된 초보 타로 상담사", "퇴사를 앞둔 3~5년차 직장인", "자기계발에 관심 있는 2030 여성"
-
-반드시 아래 형식으로만 10줄, 다른 텍스트 절대 금지:
-1|주제|부제|타겟독자
-2|주제|부제|타겟독자
-3|주제|부제|타겟독자
-4|주제|부제|타겟독자
-5|주제|부제|타겟독자
-6|주제|부제|타겟독자
-7|주제|부제|타겟독자
-8|주제|부제|타겟독자
-9|주제|부제|타겟독자
-10|주제|부제|타겟독자"""
-                result = generate_text(prompt, max_tokens=800)
+반드시 JSON 배열로만 응답. 다른 텍스트 없이:
+[
+  {{"topic": "주제", "subtitle": "부제", "target": "타겟"}},
+  ...10개...
+]"""
+                result = generate_text(prompt, max_tokens=2000)
                 if result:
                     ideas = []
-                    for line in result.strip().split("\n"):
-                        line = line.strip()
-                        if not line:
-                            continue
-                        parts = line.split("|")
-                        if len(parts) >= 4:
-                            ideas.append({
-                                "topic": parts[1].strip(),
-                                "subtitle": parts[2].strip(),
-                                "target": parts[3].strip()
-                            })
-                        elif len(parts) == 3:
-                            ideas.append({
-                                "topic": parts[0].strip().lstrip("12345. "),
-                                "subtitle": parts[1].strip(),
-                                "target": parts[2].strip()
-                            })
+                    try:
+                        import re as _re
+                        clean = _re.sub(r'```json|```', '', result).strip()
+                        # JSON 배열 추출
+                        match = _re.search(r'\[.*\]', clean, _re.DOTALL)
+                        if match:
+                            ideas = _json.loads(match.group())
+                    except Exception:
+                        pass
+                    # 파이프 구분자 fallback
+                    if not ideas:
+                        for line in result.strip().split("\n"):
+                            line = line.strip()
+                            if not line:
+                                continue
+                            parts = line.split("|")
+                            if len(parts) >= 4:
+                                ideas.append({"topic": parts[1].strip(), "subtitle": parts[2].strip(), "target": parts[3].strip()})
+                            elif len(parts) == 3:
+                                ideas.append({"topic": parts[0].strip().lstrip("0123456789. "), "subtitle": parts[1].strip(), "target": parts[2].strip()})
                     if ideas:
                         st.session_state["recommend_ideas"] = ideas
+                        st.session_state["recommend_raw"] = None
                         st.rerun()
-                    elif result:
+                    else:
+                        st.session_state["recommend_raw"] = result
+                        st.rerun()
+
                         # 파싱 실패시 원본 그대로 보여주기
                         st.session_state["recommend_raw"] = result
                         st.rerun()
