@@ -40,19 +40,24 @@ st.markdown("---")
 st.header("전자책 기획 정보 입력")
 st.caption("당신의 경험과 노하우를 입력하세요. 나머지는 시스템이 처리합니다.")
 
-# 주제 추천
+# ── 주제 추천 ──
 st.subheader("💡 주제 추천")
 col1, col2 = st.columns([4, 1])
 with col1:
-    keyword_input = st.text_input("키워드 입력", placeholder="예: 타로, 부업, 다이어트, 주식...")
+    keyword_input = st.text_input(
+        "키워드 입력",
+        placeholder="예: 타로, 부업, 다이어트, 주식...",
+        key="keyword_input"
+    )
 with col2:
     st.write("")
-    if st.button("추천받기 ✨"):
-        if keyword_input:
-            with st.spinner("추천 중..."):
-                prompt = f"""키워드: {keyword_input}
+    if st.button("추천받기 ✨", key="btn_recommend"):
+        kw = st.session_state.get("keyword_input", "")
+        if kw:
+            with st.spinner("AI가 추천하는 중..."):
+                prompt = f"""키워드: {kw}
 판매 가능한 전자책 아이디어 5개를 추천해주세요.
-각각 아래 형식으로 (다른 텍스트 없이):
+각각 아래 형식으로만 응답 (다른 텍스트 없이):
 1|주제|부제|타겟독자
 2|주제|부제|타겟독자
 3|주제|부제|타겟독자
@@ -71,11 +76,15 @@ with col2:
                             })
                     if ideas:
                         st.session_state["recommend_ideas"] = ideas
+                        st.rerun()
+        else:
+            st.warning("키워드를 입력해주세요!")
 
+# 추천 결과 표시
 if st.session_state.get("recommend_ideas"):
-    st.info("👇 클릭하면 자동으로 채워져요!")
+    st.info("👇 클릭하면 주제/부제/타겟이 자동으로 채워져요! (직접 수정도 가능해요)")
     for i, idea in enumerate(st.session_state["recommend_ideas"]):
-        if st.button(idea["topic"], key=f"idea_{i}"):
+        if st.button(f"📌 {idea['topic']}", key=f"idea_{i}"):
             st.session_state.topic = idea["topic"]
             st.session_state.subtitle = idea["subtitle"]
             st.session_state.target = idea["target"]
@@ -85,6 +94,7 @@ if st.session_state.get("recommend_ideas"):
 st.markdown("---")
 st.subheader("📚 기본 정보")
 
+# 입력 후 수정 가능
 st.session_state.topic = st.text_input(
     "전자책 주제 *",
     value=st.session_state.topic,
@@ -103,6 +113,7 @@ st.session_state.target = st.text_input(
     placeholder="예: 타로 부업을 희망하는 예비 상담사"
 )
 
+# 핵심 노하우
 col_kh1, col_kh2 = st.columns([4, 1])
 with col_kh1:
     st.session_state.knowhow = st.text_area(
@@ -114,15 +125,19 @@ with col_kh1:
 with col_kh2:
     st.write("")
     st.write("")
-    if st.button("노하우 추천 ✨"):
+    st.write("")
+    if st.button("노하우 추천 ✨", key="btn_knowhow"):
         if st.session_state.topic:
             with st.spinner("추천 중..."):
-                prompt = f"전자책 주제: {st.session_state.topic}\n핵심 노하우 5~7가지를 줄바꿈으로 구분해서 추천해주세요. 번호 없이."
+                prompt = f"전자책 주제: {st.session_state.topic}\n타겟: {st.session_state.target or '일반 독자'}\n핵심 노하우 5~7가지를 줄바꿈으로 구분해서 추천해주세요. 번호 없이."
                 result = generate_text(prompt, max_tokens=400)
                 if result:
                     st.session_state.knowhow = result
                     st.rerun()
+        else:
+            st.warning("주제를 먼저 입력해주세요!")
 
+# 톤앤매너
 tone_options = ["친근하고 실용적인", "전문적이고 신뢰감 있는", "유머러스하고 가벼운", "진지하고 깊이 있는", "직접적이고 임팩트 있는"]
 st.session_state.tone = st.selectbox(
     "🎨 톤앤매너",
@@ -130,6 +145,7 @@ st.session_state.tone = st.selectbox(
     index=tone_options.index(st.session_state.tone) if st.session_state.tone in tone_options else 0
 )
 
+# 시리즈
 col_s1, col_s2 = st.columns(2)
 with col_s1:
     if st.button("📕 단권" + (" ✓" if st.session_state.series == "단권" else ""), use_container_width=True):
@@ -140,6 +156,7 @@ with col_s2:
         st.session_state.series = "3권"
         st.rerun()
 
+# 페이지 수
 st.session_state.page_count = st.slider(
     "📄 목표 페이지 수",
     min_value=80,
