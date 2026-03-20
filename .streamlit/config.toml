@@ -1,0 +1,13 @@
+[theme]
+primaryColor = "#e05c2a"
+backgroundColor = "#faf9f7"
+secondaryBackgroundColor = "#f0ede8"
+textColor = "#1a1a1a"
+font = "sans serif"
+
+[server]
+headless = true
+port = 8501
+```
+```
+5. Commit changes!
