@@ -84,7 +84,7 @@ with col2:
                         if start != -1 and end > start:
                             ideas = _json.loads(clean[start:end])
                     except Exception as je:
-                        pass
+                        st.error(f"파싱 오류: {je}")
                     # 파이프 구분자 fallback
                     if not ideas:
                         for line in result.strip().split("\n"):
@@ -100,11 +100,7 @@ with col2:
                         st.session_state["recommend_ideas"] = ideas
                         st.session_state["recommend_raw"] = None
                         st.rerun()
-                    else:
-                        st.session_state["recommend_raw"] = result
-                        st.rerun()
-
-                        # 파싱 실패시 원본 그대로 보여주기
+                  else:
                         st.session_state["recommend_raw"] = result
                         st.rerun()
 
