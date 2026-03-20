@@ -13,10 +13,10 @@ html, body, [class*="css"] {
 }
 
 /* ── 사이드바 숨기기 ── */
-section[data-testid="stSidebar"] { display: none; }
+/* sidebar visible */
 
 /* ── 헤더 숨기기 ── */
-header[data-testid="stHeader"] { display: none; }
+/* header visible */
 
 /* ── 상단 네비게이션 ── */
 .top-nav {
